@@ -2,6 +2,7 @@
 #define SPONGE_LIBSPONGE_BYTE_STREAM_HH
 
 #include <string>
+#include <deque>
 
 //! \brief An in-order byte stream.
 
@@ -11,7 +12,13 @@
 class ByteStream {
   private:
     // Your code here -- add private members as necessary.
+    bool _close {};
 
+    std::deque<char> _data_channel {};
+    size_t _capacity;
+    size_t _capacity_now;
+    size_t _num_bytes_poped {};
+    size_t _num_bytes_pushed {};
     // Hint: This doesn't need to be a sophisticated data structure at
     // all, but if any of your tests are taking longer than a second,
     // that's a sign that you probably want to keep exploring
@@ -32,10 +39,10 @@ class ByteStream {
     size_t write(const std::string &data);
 
     //! \returns the number of additional bytes that the stream has space for
-    size_t remaining_capacity() const;
+    size_t remaining_capacity() const { return _capacity_now; };
 
     //! Signal that the byte stream has reached its ending
-    void end_input();
+    void end_input() { _close = true; };
 
     //! Indicate that the stream suffered an error.
     void set_error() { _error = true; }
@@ -56,29 +63,29 @@ class ByteStream {
     std::string read(const size_t len);
 
     //! \returns `true` if the stream input has ended
-    bool input_ended() const;
+    bool input_ended() const { return _close; };
 
     //! \returns `true` if the stream has suffered an error
     bool error() const { return _error; }
 
     //! \returns the maximum amount that can currently be read from the stream
-    size_t buffer_size() const;
+    size_t buffer_size() const { return _capacity - _capacity_now; };
 
     //! \returns `true` if the buffer is empty
-    bool buffer_empty() const;
+    bool buffer_empty() const { return (_capacity == _capacity_now); };
 
     //! \returns `true` if the output has reached the ending
-    bool eof() const;
+    bool eof() const { return _close && buffer_empty(); };
     //!@}
 
     //! \name General accounting
     //!@{
 
     //! Total number of bytes written
-    size_t bytes_written() const;
+    size_t bytes_written() const { return _num_bytes_pushed; };
 
     //! Total number of bytes popped
-    size_t bytes_read() const;
+    size_t bytes_read() const { return _num_bytes_poped; };
     //!@}
 };
 
