@@ -1,6 +1,7 @@
 #ifndef SPONGE_LIBSPONGE_TCP_SENDER_HH
 #define SPONGE_LIBSPONGE_TCP_SENDER_HH
 
+#include "buffer.hh"
 #include "byte_stream.hh"
 #include "tcp_config.hh"
 #include "tcp_segment.hh"
@@ -8,6 +9,8 @@
 
 #include <functional>
 #include <queue>
+#include <utility>
+#include <map>
 
 //! \brief The "sender" part of a TCP implementation.
 
@@ -31,6 +34,37 @@ class TCPSender {
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
+
+    class _RetransmissionTimer {
+    public:
+      // member var
+      unsigned int _rto;
+      unsigned int _init_rto;
+      unsigned int _time_passed{};
+      uint64_t _bytes_in_flight{};
+      uint32_t _retry{};
+      std::map<uint64_t, TCPSegment> _aux_storage{};
+
+      // construction
+      _RetransmissionTimer(unsigned int _init_rto);
+
+      // member function
+      void add(uint64_t start_abs_index, TCPSegment &seg) { _aux_storage.insert(make_pair(start_abs_index, seg)); };
+      void delete_acked_segment(uint64_t ackno);
+      void restart_timer();
+
+      std::map<uint64_t, TCPSegment> const data() const { return _aux_storage; };
+      // TCPSegment const & peek() { return _aux_storage.front(); };
+      // void pop() { _aux_storage.pop(); };
+
+      unsigned int consecutive_retransmissions() const { return _retry; };
+      uint64_t bytes_in_flight() const { return _bytes_in_flight; };
+    };
+    _RetransmissionTimer _timer;
+    WrappingInt32        _remote_ack;
+    uint16_t             _remote_window_size;
+    bool                 _syn_flag{};   // 是否发送过SYN
+    bool                 _fin_flag{};   // 是否发送过FIN
 
   public:
     //! Initialize a TCPSender

@@ -27,13 +27,17 @@ WrappingInt32 wrap(uint64_t n, WrappingInt32 isn) {
 //! runs from the local TCPSender to the remote TCPReceiver and has one ISN,
 //! and the other stream runs from the remote TCPSender to the local TCPReceiver and
 //! has a different ISN.
+// problem: (0, 0, 1 << 31) ????? FUCK
 uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
-    uint32_t seq = n - isn;
-    uint32_t abs_seq = checkpoint >> 32;
-    uint64_t flag = (checkpoint & 0xFFFFFFFF00000000UL);
-    uint64_t res = flag | seq;
-    if (max(seq, abs_seq) - min(seq, abs_seq) >= 1 << 31) {
-        res = abs_seq > seq ? res + 1 << 32 : res - 1 << 32;
+    uint32_t offset = n - isn;
+    uint32_t abs_offset = static_cast<uint32_t>(checkpoint);
+    uint64_t res = (checkpoint & 0xFFFFFFFF00000000ULL) | offset;
+    uint64_t const constexpr UINT32_RANGE = 1ULL << 32ULL;
+    if (max(offset, abs_offset) - min(offset, abs_offset) >= (1U << 31U)) {
+        if (abs_offset > offset)
+            res += UINT32_RANGE;
+        else if (res > UINT32_RANGE)
+            res -= UINT32_RANGE;
     }
     return res;
 }

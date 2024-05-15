@@ -1,4 +1,7 @@
 #include "tcp_receiver.hh"
+#include "wrapping_integers.hh"
+
+#include <optional>
 
 // Dummy implementation of a TCP receiver
 
@@ -11,9 +14,35 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 using namespace std;
 
 void TCPReceiver::segment_received(const TCPSegment &seg) {
-    DUMMY_CODE(seg);
+    TCPHeader const &header = seg.header();
+    if (!_syn_flag) {
+        // 处在LISTEN状态时，丢弃一些非SYN包
+        if (!header.syn)
+            return;
+        _syn_flag = true;
+        _isn = header.seqno;
+    }
+    // seq -> abs_seq
+    size_t index = unwrap(header.seqno, _isn, _reassembler.stream_out().bytes_written() + 1ULL);
+    // abs_seq -> index
+    index = index - 1 + header.syn;
+    _reassembler.push_substring(seg.payload().copy(), index, header.fin);
 }
 
-optional<WrappingInt32> TCPReceiver::ackno() const { return {}; }
+optional<WrappingInt32> TCPReceiver::ackno() const { 
+    // LISTEN 状态
+    if ( !_syn_flag ) {
+        return nullopt;
+    }
+    // SYN 占用一个序列号 FIN 占用一个序列号
+    uint64_t ack_no = _reassembler.stream_out().bytes_written() + 1ULL;
+    if ( _reassembler.stream_out().input_ended() ) {
+        // FIN_RECV 状态
+        ack_no ++;
+    }
+    return { wrap( ack_no, WrappingInt32( _isn ) ) };
+}
 
-size_t TCPReceiver::window_size() const { return {}; }
+size_t TCPReceiver::window_size() const { 
+    return _reassembler.stream_out().remaining_capacity();
+}
