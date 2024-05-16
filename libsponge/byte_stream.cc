@@ -60,5 +60,6 @@ std::string ByteStream::read(const size_t len) {
     // method "pop_output" and "peek_output" will validate the data range.
     std::string res = peek_output(len);
     pop_output(len);
-    return std::move(res);
+    // return std::move(res);
+    return res;
 }

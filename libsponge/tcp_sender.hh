@@ -46,10 +46,10 @@ class TCPSender {
       std::map<uint64_t, TCPSegment> _aux_storage{};
 
       // construction
-      _RetransmissionTimer(unsigned int _init_rto);
+      _RetransmissionTimer(unsigned int init_rto);
 
       // member function
-      void add(uint64_t start_abs_index, TCPSegment &seg) { _aux_storage.insert(make_pair(start_abs_index, seg)); };
+      void add(uint64_t start_abs_index, TCPSegment &seg) { _aux_storage.insert(std::make_pair(start_abs_index, seg)); };
       void delete_acked_segment(uint64_t ackno);
       void restart_timer();
 
@@ -62,7 +62,7 @@ class TCPSender {
     };
     _RetransmissionTimer _timer;
     WrappingInt32        _remote_ack;
-    uint16_t             _remote_window_size;
+    uint16_t             _remote_window_size{};
     bool                 _syn_flag{};   // 是否发送过SYN
     bool                 _fin_flag{};   // 是否发送过FIN
 
