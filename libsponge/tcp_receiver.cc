@@ -22,10 +22,14 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
         _syn_flag = true;
         _isn = header.seqno;
     }
-    // seq -> abs_seq
+
+    /*
+    TCP中的三种序列号：1. TCP头里的相对序列号seq 2. 绝对序列号abs_seq 3. ByteStream中的索引index
+    下面的代码完成了seq -> abs_seq -> index的过程
+    */
     size_t index = unwrap(header.seqno, _isn, _reassembler.stream_out().bytes_written() + 1ULL);
-    // abs_seq -> index
     index = index - 1 + header.syn;
+    
     _reassembler.push_substring(seg.payload().copy(), index, header.fin);
 }
 

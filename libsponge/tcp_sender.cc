@@ -88,7 +88,7 @@ void TCPSender::fill_window() {
             _fin_flag = true;
             max_sent_len --;
         }
-        
+
         // final
         size_t seg_len = tcp_seg.length_in_sequence_space();
         if (seg_len) {
@@ -154,6 +154,7 @@ unsigned int TCPSender::consecutive_retransmissions() const {
 
 void TCPSender::send_empty_segment() {
     TCPSegment seg = TCPSegment();
+    seg.header().seqno = next_seqno();
     _segments_out.push(seg);
 }
 

@@ -6,6 +6,8 @@
 #include "tcp_sender.hh"
 #include "tcp_state.hh"
 
+#include <limits>
+
 //! \brief A complete endpoint of a TCP connection
 class TCPConnection {
   private:
@@ -20,6 +22,18 @@ class TCPConnection {
     //! for 10 * _cfg.rt_timeout milliseconds after both streams have ended,
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
     bool _linger_after_streams_finish{true};
+
+    size_t _time_since_last_segment_received{};
+    bool _is_active{};
+
+    void _transmitting_and_add_ack_windowsize_for_segments();
+    void _set_ack_windowsize_for_segments(TCPSegment &seg, WrappingInt32 ackno, size_t window_size) {
+      seg.header().ack = true;
+      // window_size是size_t类型的，tcp头的winsize是16位的，这里要防止window_size溢出
+      seg.header().win = static_cast<uint16_t>((static_cast<size_t>((std::numeric_limits<uint16_t>::max)()), window_size));
+      seg.header().ackno = ackno;
+    };
+    void _abort_connection(bool is_rst_sent);
 
   public:
     //! \name "Input" interface for the writer
