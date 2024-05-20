@@ -62,7 +62,8 @@ class TCPSender {
     };
     _RetransmissionTimer _timer;
     WrappingInt32        _remote_ack;
-    uint16_t             _remote_window_size{};
+    // 不能初始化为0，原因见TCPSender::tick函数
+    uint16_t             _remote_window_size{1};
     bool                 _syn_flag{};   // 是否发送过SYN
     bool                 _fin_flag{};   // 是否发送过FIN
 
