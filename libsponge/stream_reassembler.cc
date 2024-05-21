@@ -59,6 +59,15 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         _eof_index = ed;
     }
 
+    /*
+    对两种情况的排除：
+    1. st + ed < ack: 不会进入下面的if语句
+    2. st > ack + capacity：下面的if语句无法处理，这里需要额外进行排除
+    */
+    if (st >= _ack + _capacity) {
+        return;
+    }
+
     // 空字符串不进入下面两个语句
     // case 1: st <= ack and ed >= ack
     // push data to ByteStream and maintain the _aux_storage

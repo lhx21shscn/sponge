@@ -22,11 +22,10 @@ size_t TCPConnection::unassembled_bytes() const { return _receiver.unassembled_b
 
 size_t TCPConnection::time_since_last_segment_received() const { return _time_since_last_segment_received; }
 
-    // TODO: 判断is_alive, 连接是否关闭
 void TCPConnection::segment_received(const TCPSegment &seg) {
     _time_since_last_segment_received = 0;
     if (seg.header().rst) {
-        _abort_connection(false);
+        _abort_connection(false, true);
         return;
     }
 
@@ -84,7 +83,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     if (!_linger_after_streams_finish &&
         TCPState::state_summary(_receiver) == TCPReceiverStateSummary::FIN_RECV &&
         TCPState::state_summary(_sender) == TCPSenderStateSummary::FIN_ACKED) {
-        _abort_connection(false);
+        _abort_connection(false, false);
     }
     _transmitting_and_add_ack_windowsize_for_segments();
 }
@@ -105,17 +104,17 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
 
     // forced showdown
     if (_sender.consecutive_retransmissions() > _cfg.MAX_RETX_ATTEMPTS) {
-        _abort_connection(true);
+        _abort_connection(true, true);
         return;
     }
 
     _transmitting_and_add_ack_windowsize_for_segments();
 
     // cleanly shutdown
-    if (_linger_after_streams_finish && _time_since_last_segment_received > 10 * _cfg.rt_timeout
+    if (_linger_after_streams_finish && _time_since_last_segment_received >= 10 * _cfg.rt_timeout
             && TCPState::state_summary(_sender) == TCPSenderStateSummary::FIN_ACKED
             && TCPState::state_summary(_receiver) == TCPReceiverStateSummary::FIN_RECV) {
-        _abort_connection(false);
+        _abort_connection(false, false);
     }
 }
 
@@ -148,7 +147,7 @@ TCPConnection::~TCPConnection() {
             cerr << "Warning: Unclean shutdown of TCPConnection\n";
 
             // Your code here: need to send a RST segment to the 
-            _abort_connection(true);
+            _abort_connection(true, true);
         }
     } catch (const exception &e) {
         std::cerr << "Exception destructing TCP FSM: " << e.what() << std::endl;
@@ -162,15 +161,28 @@ void TCPConnection::_transmitting_and_add_ack_windowsize_for_segments() {
     queue<TCPSegment>& que = _sender.segments_out();
     while(!que.empty()) {
         TCPSegment &temp = que.front();
-        _set_ack_windowsize_for_segments(temp, _receiver.ackno().value(), _receiver.window_size());
+        if (_receiver.ackno().has_value())
+            _set_ack_windowsize_for_segments(temp, _receiver.ackno().value(), _receiver.window_size());
         _segments_out.push(temp);
         que.pop();
     }
 }
 
-void TCPConnection::_abort_connection(bool is_rst_sent) {
-    is_rst_sent = false;
-    cerr << is_rst_sent << endl;
+void TCPConnection::_abort_connection(bool is_rst_sent, bool is_error) {
+
+    if (is_rst_sent) {
+        TCPSegment seg = TCPSegment();
+        seg.header().rst = true;
+        seg.header().seqno = _sender.next_seqno();
+        _segments_out.push(seg);
+    }
+    _is_active = false;
+
+    if (is_error) {
+        _sender.stream_in().set_error();
+        _receiver.stream_out().set_error();
+    }
+
     return;
 }
 

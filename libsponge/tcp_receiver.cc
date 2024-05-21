@@ -28,7 +28,17 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
     下面的代码完成了seq -> abs_seq -> index的过程
     */
     size_t index = unwrap(header.seqno, _isn, _reassembler.stream_out().bytes_written() + 1ULL);
-    index = index - 1 + header.syn;
+    /*  
+    这行代码进行了绝对序列号到字节流索引的转换，但是这里有bug
+    当绝对序列号为0，且header.syn=1时，溢出了。
+    原代码：index = index - 1 + header.syn;
+    */
+    if (index || header.syn) {
+        index = index - 1 + header.syn;
+    } else {
+        // 发送了上述注释的情况，发送了错误的包。
+        return;
+    }
     
     _reassembler.push_substring(seg.payload().copy(), index, header.fin);
 }

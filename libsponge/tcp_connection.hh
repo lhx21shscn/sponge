@@ -24,7 +24,7 @@ class TCPConnection {
     bool _linger_after_streams_finish{true};
 
     size_t _time_since_last_segment_received{};
-    bool _is_active{};
+    bool _is_active{true};
 
     void _transmitting_and_add_ack_windowsize_for_segments();
     void _set_ack_windowsize_for_segments(TCPSegment &seg, WrappingInt32 ackno, size_t window_size) {
@@ -33,7 +33,7 @@ class TCPConnection {
       seg.header().win = static_cast<uint16_t>((static_cast<size_t>((std::numeric_limits<uint16_t>::max)()), window_size));
       seg.header().ackno = ackno;
     };
-    void _abort_connection(bool is_rst_sent);
+    void _abort_connection(bool is_rst_sent, bool is_error);
 
   public:
     //! \name "Input" interface for the writer
