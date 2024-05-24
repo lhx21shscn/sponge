@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <queue>
+#include <vector>
 #include <map>
 
 //! \brief A "network interface" that connects IP (the internet layer, or network layer)
@@ -51,15 +52,11 @@ class NetworkInterface {
     
 
     // 未知MAC地址，将IP报文暂存，等收到ARP reply后进行发送。
-    std::map<uint32_t, vector<InternetDatagram>> _waiting_datagram{};
+    std::map<uint32_t, std::vector<InternetDatagram>> _waiting_datagram{};
 
     // 需要记录5s内发送的ARP请求报文，重复的ARP泛洪请求不再发送
     size_t SendTimeOut = 5 * 1000; // 5s
-    struct SendEntry {
-      size_t time_pass;
-      uint32_t ip_address;
-    };
-    std::map<uint32_t, SendEntry> _send_table{};
+    std::map<uint32_t, size_t> _send_table{};
 
   public:
     //! \brief Construct a network interface with given Ethernet (network-access-layer) and IP (internet-layer) addresses
