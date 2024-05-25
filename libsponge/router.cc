@@ -29,14 +29,38 @@ void Router::add_route(const uint32_t route_prefix,
     cerr << "DEBUG: adding route " << Address::from_ipv4_numeric(route_prefix).ip() << "/" << int(prefix_length)
          << " => " << (next_hop.has_value() ? next_hop->ip() : "(direct)") << " on interface " << interface_num << "\n";
 
-    DUMMY_CODE(route_prefix, prefix_length, next_hop, interface_num);
     // Your code here.
+    uint32_t mask = 0xFFFFFFFFU;
+    // 为啥要区分prefix_length为0，因为(mask >> 32的结果为mask而不是0)
+    if (prefix_length)
+        mask = (mask >> (32 - prefix_length)) << (32 - prefix_length);
+    else
+        mask = 0;
+    RouteEntry entry{route_prefix, mask, next_hop, interface_num};
+    _route_table.push_back(entry);
 }
 
 //! \param[in] dgram The datagram to be routed
 void Router::route_one_datagram(InternetDatagram &dgram) {
-    DUMMY_CODE(dgram);
     // Your code here.
+    uint32_t dst = dgram.header().dst;
+    uint32_t now_mask = 0;
+    ssize_t match_idx = -1;
+
+    for (size_t i = 0; i < _route_table.size(); ++ i) {
+        auto &entry = _route_table.at(i);
+        if ((dst & entry.mask) == entry.dst && entry.mask >= now_mask) {
+            match_idx = i;
+            now_mask = entry.mask;   
+        }
+    }
+    
+    // 很坑的bug：这里必须是ttl --,不能是 --ttl,因为如果ttl为0，那么先减就溢出了
+    if (~match_idx && (dgram.header().ttl -- > 1)) {
+        auto &entry = _route_table.at(match_idx);
+        Address next_hop = entry.gateway.has_value() ? entry.gateway.value() : Address::from_ipv4_numeric(dst);
+        interface(entry.iface).send_datagram(dgram, next_hop);
+    }
 }
 
 void Router::route() {
