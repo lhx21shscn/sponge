@@ -41,10 +41,11 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     size_t end_sz = _sender.segments_out().size();
 
     /*
+    要求：只要有占有序列号就一定要发包
     大部分情况下，ack_received会自动发包，但是在
     1. 三次握手中的第二次握手(发送SYN+ACK)
     2. Keep-Alive报文
-    3. 正常数据传输时，由于远端window_size过小获取本地缓存无数据导致fill_window没有发包。
+    3. 正常数据传输时，由于远端window_size过小获取本地发送缓存无数据导致fill_window没有发包。
     这些情况需要特判并补充发包
     */
 
